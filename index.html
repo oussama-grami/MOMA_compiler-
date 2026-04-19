@@ -320,7 +320,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 
       <div class="panel-head" style="border-top:1px solid var(--border);">Symbol table (session)</div>
       <div class="sym-wrap" id="symWrap">
-        <div class="sym-empty">Aucune variable déclarée.</div>
+        <div class="sym-empty">No variables declared yet.</div>
       </div>
 
       <div class="actions">
@@ -346,8 +346,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
       <!-- outputs -->
       <div class="outputs" id="outputs">
         <div class="placeholder">
-          Écris un programme (une instruction par ligne), puis clique sur <span>▶ Run</span>.<br>
-          Le code tourne via ton backend Python — <span>lexical_analyser.py</span>,
+          Write a program (one statement per line), then click <span>▶ Run</span>.<br>
+          Your code is executed by the Python backend — <span>lexical_analyser.py</span>,
           <span>parser.py</span>, <span>semantic_analyzer.py</span>.
         </div>
       </div>
@@ -355,7 +355,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
       <!-- statusbar -->
       <div class="statusbar">
         <div class="sdot" id="sdot"></div>
-        <span id="stext">En attente…</span>
+        <span id="stext">Idle...</span>
       </div>
     </div>
   </div>
@@ -370,11 +370,11 @@ async function ping() {
     const r = await fetch(API + '/status');
     const d = await r.json();
     if (d.ok) {
-      setPill('● connecté', 'green');
+      setPill('● connected', 'green');
       renderSymTable(d.symbol_table);
     }
   } catch {
-    setPill('● hors ligne', 'red');
+    setPill('● offline', 'red');
   }
 }
 ping();
@@ -422,11 +422,11 @@ function renderSymTable(tbl) {
   const wrap = document.getElementById('symWrap');
   const entries = Object.entries(tbl || {});
   if (!entries.length) {
-    wrap.innerHTML = '<div class="sym-empty">Aucune variable déclarée.</div>';
+    wrap.innerHTML = '<div class="sym-empty">No variables declared yet.</div>';
     return;
   }
   let html = `<table class="sym-table">
-    <tr><th>Nom</th><th>Type</th></tr>`;
+    <tr><th>Name</th><th>Type</th></tr>`;
   for (const [name, type] of entries) {
     html += `<tr class="sym-new"><td class="sym-name">${esc(name)}</td>
       <td class="type-${type}">${esc(type)}</td></tr>`;
@@ -512,9 +512,9 @@ async function runPipeline() {
   const btn = document.getElementById('runBtn');
   const lbl = document.getElementById('runLabel');
   btn.disabled = true;
-  lbl.innerHTML = '<span class="spin"></span> Analyse…';
+  lbl.innerHTML = '<span class="spin"></span> Analyzing...';
 
-  setStatus('busy', 'Envoi au backend Python…');
+  setStatus('busy', 'Sending code to Python backend...');
   resetStages();
   const out = document.getElementById('outputs');
   out.innerHTML = '';
@@ -523,8 +523,8 @@ async function runPipeline() {
 
   for (let i = 0; i < program.length; i++) {
     const item = program[i];
-    const prefix = `Ligne ${item.lineNumber} · instruction ${i + 1}/${program.length}`;
-    setStatus('busy', `${prefix} — analyse en cours…`);
+    const prefix = `Line ${item.lineNumber} · statement ${i + 1}/${program.length}`;
+    setStatus('busy', `${prefix} — analyzing...`);
 
     let data;
     try {
@@ -535,9 +535,9 @@ async function runPipeline() {
       });
       data = await res.json();
     } catch(e) {
-      setStatus('err', 'Impossible de joindre le serveur Python.');
-      setPill('● hors ligne', 'red');
-      done(false, 'Serveur indisponible');
+      setStatus('err', 'Could not reach Python server.');
+      setPill('● offline', 'red');
+      done(false, 'Server unavailable');
       return;
     }
 
@@ -563,12 +563,13 @@ async function runPipeline() {
     if (s.parser) {
       setStage('pParse', s.parser.ok ? 'ok' : 'err');
       if (s.parser.ok) {
+        const parserAst = s.parser.ast || (Array.isArray(s.parser.asts) ? s.parser.asts[0] : null);
         appendStageCard(
           out,
           prefix,
           'var(--amber)',
           'Stage 2 — AST (Abstract Syntax Tree)',
-          `<div class="ast-tree">${renderAST(s.parser.ast)}</div>`
+          `<div class="ast-tree">${renderAST(parserAst)}</div>`
         );
       } else {
         appendStageCard(out, prefix, 'var(--red)', 'Stage 2 — Parser Error', `<div class="err-msg">${esc(s.parser.error)}</div>`);
@@ -588,10 +589,10 @@ async function runPipeline() {
           'Stage 3 — Semantic Analysis',
           `<div class="result-row">
             <div>
-              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Type inféré</div>
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Inferred type</div>
               <div class="type-badge ${tc}">${esc(s.semantic.type)}</div>
             </div>
-            <div class="ok-msg">✓ Instruction sémantiquement valide.</div>
+            <div class="ok-msg">✓ Statement is semantically valid.</div>
           </div>`
         );
         renderSymTable(s.semantic.symbol_table);
@@ -605,11 +606,11 @@ async function runPipeline() {
     }
   }
 
-  const finalMsg = `OK — programme valide (${okCount}/${program.length} instruction(s))`;
+  const finalMsg = `OK — valid program (${okCount}/${program.length} statement(s))`;
   done(true, finalMsg);
   return;
 
-  /* ancien flow mono-instruction conservé ci-dessous volontairement supprimé */
+  /* legacy single-statement flow intentionally removed */
 }
 
 function done(ok, msg) {
@@ -628,12 +629,12 @@ async function resetSession() {
     const d = await r.json();
     renderSymTable({});
     document.getElementById('outputs').innerHTML = `
-      <div class="placeholder">Session réinitialisée. La symbol table est vide.<br>
-      Tu peux redéclarer tes variables.</div>`;
+      <div class="placeholder">Session reset. The symbol table is now empty.<br>
+      You can redeclare your variables.</div>`;
     resetStages();
-    setStatus('', 'Session réinitialisée');
+    setStatus('', 'Session reset');
   } catch {
-    setStatus('err', 'Impossible de joindre le serveur');
+    setStatus('err', 'Could not reach server');
   }
 }
 
