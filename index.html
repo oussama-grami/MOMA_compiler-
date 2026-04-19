@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Compiler Playground</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:        #0a0a0f;
+  --surface:   #111118;
+  --surface2:  #18181f;
+  --surface3:  #1f1f28;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.13);
+  --text:      #ededf5;
+  --muted:     #6b6b88;
+  --dim:       #383850;
+  --accent:    #7c5cfc;
+  --accent-lo: rgba(124,92,252,0.12);
+  --green:     #22d3a0;
+  --green-lo:  rgba(34,211,160,0.1);
+  --red:       #f16b6b;
+  --red-lo:    rgba(241,107,107,0.1);
+  --amber:     #f5a623;
+  --amber-lo:  rgba(245,166,35,0.1);
+  --blue:      #5b9cf6;
+  --blue-lo:   rgba(91,156,246,0.1);
+  --pink:      #e879f9;
+  --pink-lo:   rgba(232,121,249,0.1);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Space Grotesk', sans-serif;
+  --r: 10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;}
+
+/* ── GRID ── */
+.app{display:grid;grid-template-rows:56px 1fr;height:100vh;}
+.main{display:grid;grid-template-columns:minmax(300px, 380px) minmax(0, 1fr);overflow:hidden;}
+
+/* ── TOPBAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+  z-index:10;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-icon{
+  width:30px;height:30px;border-radius:7px;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:-0.02em;}
+.brand-sub{font-size:11px;color:var(--muted);font-weight:400;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.pill{
+  font-family:var(--mono);font-size:10px;font-weight:500;
+  padding:3px 9px;border-radius:20px;
+  border:1px solid var(--border2);color:var(--muted);
+  letter-spacing:0.04em;
+}
+.pill.green{border-color:rgba(34,211,160,0.3);color:var(--green);background:var(--green-lo);}
+.pill.red{border-color:rgba(241,107,107,0.3);color:var(--red);background:var(--red-lo);}
+
+/* ── LEFT PANEL ── */
+.left{
+  display:flex;flex-direction:column;
+  border-right:1px solid var(--border);
+  background:var(--surface);
+  overflow:hidden;
+}
+.panel-head{
+  padding:12px 16px 10px;
+  border-bottom:1px solid var(--border);
+  font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);
+}
+
+/* editor */
+.editor-wrap{position:relative;flex:1;display:flex;overflow:hidden;}
+.gutter{
+  width:42px;flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  padding:14px 0;
+  display:flex;flex-direction:column;align-items:flex-end;
+  overflow:hidden;
+}
+.ln{
+  font-family:var(--mono);font-size:12px;color:var(--dim);
+  line-height:20px;height:20px;padding-right:8px;
+  display:flex;align-items:center;
+}
+#src{
+  flex:1;background:transparent;border:none;outline:none;
+  color:var(--text);font-family:var(--mono);font-size:13px;line-height:20px;
+  padding:14px 14px;resize:none;caret-color:var(--accent);
+  overflow-y:auto;
+}
+#src::placeholder{color:var(--dim);}
+
+/* snippets */
+.snips{padding:10px 14px;border-top:1px solid var(--border);}
+.snips-label{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:7px;}
+.snips-grid{display:flex;flex-wrap:wrap;gap:4px;}
+.snip{
+  font-family:var(--mono);font-size:10.5px;
+  padding:3px 8px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:5px;
+  color:var(--muted);cursor:pointer;transition:all .12s;
+}
+.snip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-lo);}
+.snip.danger:hover{border-color:var(--red);color:var(--red);background:var(--red-lo);}
+
+/* symbol table */
+.sym-wrap{border-top:1px solid var(--border);padding:10px 14px;max-height:160px;overflow-y:auto;}
+.sym-empty{font-family:var(--mono);font-size:11px;color:var(--dim);font-style:italic;}
+.sym-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;}
+.sym-table th{color:var(--muted);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;padding:3px 4px;text-align:left;font-weight:500;}
+.sym-table td{padding:4px 4px;border-top:1px solid var(--border);}
+.sym-name{color:var(--green);}
+.type-int{color:var(--blue);}
+.type-string{color:var(--pink);}
+.sym-new{animation:flashRow .5s ease;}
+@keyframes flashRow{from{background:rgba(124,92,252,.2);}to{background:transparent;}}
+
+/* actions */
+.actions{padding:12px 14px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.btn-run{
+  flex:1;background:var(--accent);color:#fff;border:none;border-radius:8px;
+  padding:10px;font-family:var(--sans);font-size:13px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+  transition:all .15s;
+}
+.btn-run:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.btn-run:active{transform:translateY(0);}
+.btn-run:disabled{opacity:.5;pointer-events:none;}
+.btn-reset{
+  background:transparent;border:1px solid var(--border2);border-radius:8px;
+  padding:10px 13px;color:var(--muted);font-family:var(--sans);font-size:12px;
+  cursor:pointer;transition:all .12s;
+}
+.btn-reset:hover{border-color:var(--red);color:var(--red);}
+
+/* ── RIGHT PANEL ── */
+.right{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);min-width:0;}
+
+/* pipeline */
+.pipeline{
+  display:flex;align-items:center;gap:0;
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  background:var(--surface);
+}
+.stage-node{
+  display:flex;align-items:center;gap:7px;
+  padding:6px 13px;border-radius:7px;
+  font-size:12px;font-weight:600;letter-spacing:.02em;
+  color:var(--muted);border:1px solid transparent;
+  transition:all .2s;position:relative;
+}
+.stage-node .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.stage-node.running{color:var(--amber);border-color:rgba(245,166,35,.3);background:var(--amber-lo);animation:glow .8s ease infinite alternate;}
+@keyframes glow{from{box-shadow:0 0 0 0 rgba(245,166,35,0);}to{box-shadow:0 0 8px 1px rgba(245,166,35,.2);}}
+.stage-node.ok{color:var(--green);border-color:rgba(34,211,160,.3);background:var(--green-lo);}
+.stage-node.err{color:var(--red);border-color:rgba(241,107,107,.3);background:var(--red-lo);}
+.pipe-arrow{color:var(--dim);margin:0 2px;font-size:16px;user-select:none;}
+
+/* outputs */
+.outputs{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;}
+.placeholder{color:var(--dim);font-family:var(--mono);font-size:12px;padding:24px 4px;line-height:1.8;}
+.placeholder span{color:var(--accent);}
+
+/* cards */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  overflow:hidden;animation:slideIn .2s ease both;flex-shrink:0;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.card-head{
+  display:flex;align-items:center;gap:8px;
+  flex-wrap:wrap;
+  padding:9px 14px;border-bottom:1px solid var(--border);
+  font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+}
+.card-head .cdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.card-body{padding:12px 14px;}
+
+/* token chips */
+.tok-row{display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px;max-height:140px;overflow:auto;}
+.tok{
+  display:inline-flex;flex-direction:column;align-items:center;
+  border-radius:5px;overflow:hidden;border:1px solid var(--border2);
+  font-family:var(--mono);font-size:10px;
+  animation:fadeUp .12s ease both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+.tok .tt{padding:2px 7px;font-weight:600;letter-spacing:.05em;}
+.tok .tv{padding:2px 7px;background:var(--surface2);border-top:1px solid var(--border);color:var(--text);}
+.tt.KEYWORD{background:var(--blue-lo);color:var(--blue);}
+.tt.ID     {background:var(--green-lo);color:var(--green);}
+.tt.NUM    {background:var(--amber-lo);color:var(--amber);}
+.tt.STRING {background:var(--pink-lo);color:var(--pink);}
+.tt.OP     {background:var(--accent-lo);color:#a78bfa;}
+.tt.SEMI   {background:rgba(255,255,255,.03);color:var(--muted);}
+
+/* AST tree */
+.ast-tree{font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--text);max-height:220px;overflow:auto;}
+.ast-kind{color:#a78bfa;font-weight:600;}
+.ast-key{color:var(--muted);}
+.ast-val-str{color:var(--pink);}
+.ast-val-num{color:var(--amber);}
+.ast-val-id{color:var(--green);}
+.ast-val-type{color:var(--blue);}
+.ast-branch{padding-left:16px;border-left:1px solid var(--border2);margin-left:4px;}
+
+/* result */
+.result-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.type-badge{
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  padding:5px 14px;border-radius:6px;border:1px solid;
+}
+.type-badge.int{background:var(--blue-lo);color:var(--blue);border-color:rgba(91,156,246,.3);}
+.type-badge.string{background:var(--pink-lo);color:var(--pink);border-color:rgba(232,121,249,.3);}
+.ok-msg{
+  flex:1;padding:8px 12px;border-radius:7px;
+  background:var(--green-lo);border:1px solid rgba(34,211,160,.2);
+  font-family:var(--mono);font-size:12px;color:var(--green);
+}
+.err-msg{
+  padding:10px 14px;border-radius:7px;
+  background:var(--red-lo);border:1px solid rgba(241,107,107,.2);
+  font-family:var(--mono);font-size:12px;color:var(--red);line-height:1.6;
+}
+
+/* statusbar */
+.statusbar{
+  padding:7px 20px;border-top:1px solid var(--border);
+  background:var(--surface);font-family:var(--mono);font-size:11px;
+  color:var(--muted);display:flex;align-items:center;gap:8px;
+}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:all .3s;}
+.sdot.ok{background:var(--green);box-shadow:0 0 5px var(--green);}
+.sdot.err{background:var(--red);box-shadow:0 0 5px var(--red);}
+.sdot.busy{background:var(--amber);animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* spinner */
+.spin{
+  display:inline-block;width:12px;height:12px;
+  border:2px solid rgba(255,255,255,.25);
+  border-top-color:#fff;border-radius:50%;
+  animation:spin .6s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* responsive: avoid panel compression on smaller screens */
+@media (max-width: 980px) {
+  html,body{overflow:auto;}
+  .app{height:auto;min-height:100vh;grid-template-rows:56px auto;}
+  .main{grid-template-columns:1fr;grid-template-rows:minmax(300px, 46vh) minmax(0, 1fr);overflow:visible;}
+  .left{border-right:none;border-bottom:1px solid var(--border);}
+  .right{min-height:50vh;}
+  .pipeline{padding:10px 12px;overflow-x:auto;}
+}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">⚙</div>
+      <div>
+        <div class="brand-name">Compiler Playground</div>
+        <div class="brand-sub">lexical_analyser · parser · semantic_analyzer</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="pill" id="serverPill">● connecting…</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- LEFT -->
+    <div class="left">
+      <div class="panel-head">Source code</div>
+
+      <div class="editor-wrap">
+        <div class="gutter" id="gutter"><div class="ln">1</div></div>
+        <textarea id="src" spellcheck="false" placeholder="int x;\nstring name;\nx = 5;\nname = &quot;alice&quot;;">int x;</textarea>
+      </div>
+
+      <div class="snips">
+        <div class="snips-label">Snippets</div>
+        <div class="snips-grid">
+          <span class="snip" onclick="snip('int x;')">int x;</span>
+          <span class="snip" onclick="snip('string name;')">string name;</span>
+          <span class="snip" onclick="snip('x = 5;')">x = 5;</span>
+          <span class="snip" onclick="snip('x = 5 + 2;')">x = 5+2</span>
+          <span class="snip" onclick="snip('name = &quot;alice&quot;;')">str assign</span>
+          <span class="snip" onclick="snip('name = &quot;hello&quot; + &quot; world&quot;;')">str concat</span>
+          <span class="snip danger" onclick="snip('y = 10;')">⚠ undeclared</span>
+          <span class="snip danger" onclick="snip('x = &quot;oops&quot;;')">⚠ type mismatch</span>
+          <span class="snip danger" onclick="snip('x = 1 + &quot;bad&quot;;')">⚠ binop error</span>
+          <span class="snip danger" onclick="snip('int x;')">⚠ redeclare</span>
+          <span class="snip" onclick="snip('int x;\nstring name;\nx = 5 + 2;\nname = &quot;hello&quot;;')">full program</span>
+        </div>
+      </div>
+
+      <div class="panel-head" style="border-top:1px solid var(--border);">Symbol table (session)</div>
+      <div class="sym-wrap" id="symWrap">
+        <div class="sym-empty">Aucune variable déclarée.</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-run" id="runBtn" onclick="runPipeline()">
+          <span id="runLabel">▶ Run</span>
+        </button>
+        <button class="btn-reset" onclick="resetSession()">Reset session</button>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+
+      <!-- pipeline bar -->
+      <div class="pipeline">
+        <div class="stage-node idle" id="pLex"><div class="dot"></div>Lexer</div>
+        <div class="pipe-arrow">›</div>
+        <div class="stage-node idle" id="pParse"><div class="dot"></div>Parser</div>
+        <div class="pipe-arrow">›</div>
+        <div class="stage-node idle" id="pSem"><div class="dot"></div>Semantic</div>
+      </div>
+
+      <!-- outputs -->
+      <div class="outputs" id="outputs">
+        <div class="placeholder">
+          Écris un programme (une instruction par ligne), puis clique sur <span>▶ Run</span>.<br>
+          Le code tourne via ton backend Python — <span>lexical_analyser.py</span>,
+          <span>parser.py</span>, <span>semantic_analyzer.py</span>.
+        </div>
+      </div>
+
+      <!-- statusbar -->
+      <div class="statusbar">
+        <div class="sdot" id="sdot"></div>
+        <span id="stext">En attente…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+
+// ── server ping ──
+async function ping() {
+  try {
+    const r = await fetch(API + '/status');
+    const d = await r.json();
+    if (d.ok) {
+      setPill('● connecté', 'green');
+      renderSymTable(d.symbol_table);
+    }
+  } catch {
+    setPill('● hors ligne', 'red');
+  }
+}
+ping();
+
+function setPill(txt, cls) {
+  const p = document.getElementById('serverPill');
+  p.textContent = txt;
+  p.className = 'pill' + (cls ? ' ' + cls : '');
+}
+
+// ── line numbers ──
+const srcEl  = document.getElementById('src');
+const gutEl  = document.getElementById('gutter');
+
+function updateGutter() {
+  const lines = srcEl.value.split('\n').length;
+  gutEl.innerHTML = Array.from({length: lines}, (_,i) =>
+    `<div class="ln">${i+1}</div>`).join('');
+}
+srcEl.addEventListener('input', updateGutter);
+srcEl.addEventListener('keydown', e => { if(e.key==='Tab'){e.preventDefault();const s=srcEl.selectionStart;srcEl.value=srcEl.value.slice(0,s)+'  '+srcEl.value.slice(srcEl.selectionEnd);srcEl.selectionStart=srcEl.selectionEnd=s+2;updateGutter();} });
+updateGutter();
+
+// ── snippets ──
+function snip(code) {
+  srcEl.value = code;
+  updateGutter();
+  srcEl.focus();
+}
+
+// ── pipeline stages ──
+function setStage(id, state) {
+  document.getElementById(id).className = 'stage-node ' + (state || 'idle');
+}
+function resetStages() { ['pLex','pParse','pSem'].forEach(id => setStage(id, 'idle')); }
+
+// ── status bar ──
+function setStatus(state, txt) {
+  document.getElementById('sdot').className = 'sdot' + (state ? ' ' + state : '');
+  document.getElementById('stext').textContent = txt;
+}
+
+// ── symbol table ──
+function renderSymTable(tbl) {
+  const wrap = document.getElementById('symWrap');
+  const entries = Object.entries(tbl || {});
+  if (!entries.length) {
+    wrap.innerHTML = '<div class="sym-empty">Aucune variable déclarée.</div>';
+    return;
+  }
+  let html = `<table class="sym-table">
+    <tr><th>Nom</th><th>Type</th></tr>`;
+  for (const [name, type] of entries) {
+    html += `<tr class="sym-new"><td class="sym-name">${esc(name)}</td>
+      <td class="type-${type}">${esc(type)}</td></tr>`;
+  }
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+
+// ── helpers ──
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── AST renderer ──
+function renderAST(node, depth = 0) {
+  if (!node) return '<span class="ast-val-str">null</span>';
+  const pad = depth > 0 ? `<div class="ast-branch">` : `<div>`;
+  const close = '</div>';
+
+  let out = pad;
+  out += `<span class="ast-kind">${esc(node.kind)}</span>`;
+
+  if (node.kind === 'Decl') {
+    out += `<div class="ast-branch">
+      <span class="ast-key">type:</span> <span class="ast-val-type">${esc(node.type)}</span><br>
+      <span class="ast-key">name:</span> <span class="ast-val-id">${esc(node.name)}</span>
+    </div>`;
+  } else if (node.kind === 'Assign') {
+    out += `<div class="ast-branch">
+      <span class="ast-key">name:</span> <span class="ast-val-id">${esc(node.name)}</span><br>
+      <span class="ast-key">expr:</span> ${renderAST(node.expr, depth+1)}
+    </div>`;
+  } else if (node.kind === 'BinOp') {
+    out += `<div class="ast-branch">
+      <span class="ast-key">op:</span> <span style="color:#a78bfa">${esc(node.op)}</span><br>
+      <span class="ast-key">left:</span> ${renderAST(node.left, depth+1)}<br>
+      <span class="ast-key">right:</span> ${renderAST(node.right, depth+1)}
+    </div>`;
+  } else if (node.kind === 'Num') {
+    out += ` <span class="ast-val-num">(${node.value})</span>`;
+  } else if (node.kind === 'Str') {
+    out += ` <span class="ast-val-str">("${esc(node.value)}")</span>`;
+  } else if (node.kind === 'Id') {
+    out += ` <span class="ast-val-id">(${esc(node.name)})</span>`;
+  }
+
+  out += close;
+  return out;
+}
+
+function getProgramLines(source) {
+  const lines = source.split('\n');
+  const program = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const text = raw.trim();
+    if (!text) continue;
+    program.push({ lineNumber: i + 1, source: text });
+  }
+
+  return program;
+}
+
+function appendStageCard(out, stageName, color, title, bodyHtml) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-head" style="color:${color}">
+      <div class="cdot" style="background:${color}"></div>${title}
+      <span style="color:var(--muted);font-weight:400;margin-left:auto">${stageName}</span>
+    </div>
+    <div class="card-body">${bodyHtml}</div>`;
+  out.appendChild(card);
+}
+
+// ── main run ──
+async function runPipeline() {
+  const source = srcEl.value;
+  const program = getProgramLines(source);
+  if (!program.length) return;
+
+  const btn = document.getElementById('runBtn');
+  const lbl = document.getElementById('runLabel');
+  btn.disabled = true;
+  lbl.innerHTML = '<span class="spin"></span> Analyse…';
+
+  setStatus('busy', 'Envoi au backend Python…');
+  resetStages();
+  const out = document.getElementById('outputs');
+  out.innerHTML = '';
+
+  let okCount = 0;
+
+  for (let i = 0; i < program.length; i++) {
+    const item = program[i];
+    const prefix = `Ligne ${item.lineNumber} · instruction ${i + 1}/${program.length}`;
+    setStatus('busy', `${prefix} — analyse en cours…`);
+
+    let data;
+    try {
+      const res = await fetch(API + '/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({source: item.source})
+      });
+      data = await res.json();
+    } catch(e) {
+      setStatus('err', 'Impossible de joindre le serveur Python.');
+      setPill('● hors ligne', 'red');
+      done(false, 'Serveur indisponible');
+      return;
+    }
+
+    const s = data.stages || {};
+
+    if (s.lexer) {
+      setStage('pLex', s.lexer.ok ? 'ok' : 'err');
+      if (s.lexer.ok) {
+        const chips = s.lexer.tokens.map((t, k) =>
+          `<div class="tok" style="animation-delay:${k*15}ms">
+            <div class="tt ${t.type}">${t.type}</div>
+            <div class="tv">${t.type==='STRING' ? '"'+esc(t.value)+'"' : esc(String(t.value))}</div>
+          </div>`
+        ).join('');
+        appendStageCard(out, prefix, 'var(--blue)', 'Stage 1 — Lexer', `<div class="tok-row" style="padding:0">${chips}</div>`);
+      } else {
+        appendStageCard(out, prefix, 'var(--red)', 'Stage 1 — Lexer Error', `<div class="err-msg">${esc(s.lexer.error)}</div>`);
+        done(false, `${prefix} — ${s.lexer.error}`);
+        return;
+      }
+    }
+
+    if (s.parser) {
+      setStage('pParse', s.parser.ok ? 'ok' : 'err');
+      if (s.parser.ok) {
+        appendStageCard(
+          out,
+          prefix,
+          'var(--amber)',
+          'Stage 2 — AST (Abstract Syntax Tree)',
+          `<div class="ast-tree">${renderAST(s.parser.ast)}</div>`
+        );
+      } else {
+        appendStageCard(out, prefix, 'var(--red)', 'Stage 2 — Parser Error', `<div class="err-msg">${esc(s.parser.error)}</div>`);
+        done(false, `${prefix} — ${s.parser.error}`);
+        return;
+      }
+    }
+
+    if (s.semantic) {
+      setStage('pSem', s.semantic.ok ? 'ok' : 'err');
+      if (s.semantic.ok) {
+        const tc = s.semantic.type === 'int' ? 'int' : 'string';
+        appendStageCard(
+          out,
+          prefix,
+          'var(--green)',
+          'Stage 3 — Semantic Analysis',
+          `<div class="result-row">
+            <div>
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Type inféré</div>
+              <div class="type-badge ${tc}">${esc(s.semantic.type)}</div>
+            </div>
+            <div class="ok-msg">✓ Instruction sémantiquement valide.</div>
+          </div>`
+        );
+        renderSymTable(s.semantic.symbol_table);
+        okCount += 1;
+      } else {
+        appendStageCard(out, prefix, 'var(--red)', 'Stage 3 — Semantic Error', `<div class="err-msg">${esc(s.semantic.error)}</div>`);
+        renderSymTable(s.semantic.symbol_table || {});
+        done(false, `${prefix} — ${s.semantic.error}`);
+        return;
+      }
+    }
+  }
+
+  const finalMsg = `OK — programme valide (${okCount}/${program.length} instruction(s))`;
+  done(true, finalMsg);
+  return;
+
+  /* ancien flow mono-instruction conservé ci-dessous volontairement supprimé */
+}
+
+function done(ok, msg) {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = false;
+  document.getElementById('runLabel').textContent = '▶ Run';
+  setStatus(ok ? 'ok' : 'err', msg || '');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── reset ──
+async function resetSession() {
+  try {
+    const r = await fetch(API + '/reset', {method:'POST'});
+    const d = await r.json();
+    renderSymTable({});
+    document.getElementById('outputs').innerHTML = `
+      <div class="placeholder">Session réinitialisée. La symbol table est vide.<br>
+      Tu peux redéclarer tes variables.</div>`;
+    resetStages();
+    setStatus('', 'Session réinitialisée');
+  } catch {
+    setStatus('err', 'Impossible de joindre le serveur');
+  }
+}
+
+// ── keyboard shortcut ──
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runPipeline(); }
+});
+</script>
+</body>
+</html>

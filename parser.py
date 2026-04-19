@@ -1,82 +1,18 @@
-"""
-==================== GRAMMAIRE ====================
+# ===================== MILESTONE 2 : PARSER =====================
+#
+# Grammaire :
+#   stmt   → decl | assign
+#   decl   → TYPE ID ';'
+#   assign → ID '=' expr ';'
+#   expr   → term expr'
+#   expr'  → '+' term expr' | ε
+#   term   → ID | NUM | STRING
+#   TYPE   → 'int' | 'string'
 
-stmt  → decl | assign
-
-decl  → TYPE ID ';'
-
-assign → ID '=' expr ';'
-
-expr  → term expr'
-expr' → '+' term expr' | ε
-
-term  → ID | NUM | STRING
-
-TYPE  → 'int' | 'string'
-
-==================================================
-"""
-
-import re
-
-# ===================== LEXER =====================
-
-TOKEN_SPEC = [
-    ('KEYWORD',  r'\b(?:int|string)\b'),
-    ('STRING',   r'"[^"]*"'),
-    ('ID',       r'[a-zA-Z_]\w*'),
-    ('NUM',      r'\d+'),
-    ('OP',       r'[=+]'),
-    ('SEMI',     r';'),
-    ('SKIP',     r'[ \t\n]+'),
-    ('MISMATCH', r'.'),
-]
-
-MASTER_RE = re.compile('|'.join(f'(?P<{name}>{pattern})' for name, pattern in TOKEN_SPEC))
+from lexical_analyser import tokenize
 
 
-class Token:
-    def __init__(self, type_, value):
-        self.type = type_
-        self.value = value
-
-    def __repr__(self):
-        if self.type == 'KEYWORD':
-            return f"KW('{self.value}')"
-        if self.type == 'ID':
-            return f"ID('{self.value}')"
-        if self.type == 'NUM':
-            return f"NUM({self.value})"
-        if self.type == 'STRING':
-            return f"STR('{self.value}')"
-        return repr(self.value)
-
-
-def tokenize(source_code):
-    tokens = []
-    for mo in MASTER_RE.finditer(source_code):
-        kind = mo.lastgroup
-        value = mo.group()
-
-        if kind == 'NUM':
-            tokens.append(Token('NUM', int(value)))
-        elif kind == 'KEYWORD':
-            tokens.append(Token('KEYWORD', value))
-        elif kind == 'ID':
-            tokens.append(Token('ID', value))
-        elif kind == 'STRING':
-            tokens.append(Token('STRING', value.strip('"')))
-        elif kind in ('OP', 'SEMI'):
-            tokens.append(Token(kind, value))
-        elif kind == 'SKIP':
-            continue
-        elif kind == 'MISMATCH':
-            raise SyntaxError(f"Unexpected character {value!r}")
-
-    return tokens
-
-
-# ===================== AST =====================
+# ── AST nodes ──────────────────────────────────────────────────
 
 class Decl:
     def __init__(self, type_, name):
@@ -130,7 +66,7 @@ class Str:
         return f"Str('{self.value}')"
 
 
-# ===================== PARSER =====================
+# ── Parser ─────────────────────────────────────────────────────
 
 class Parser:
     def __init__(self, tokens):
@@ -150,7 +86,6 @@ class Parser:
     # stmt → decl | assign
     def stmt(self):
         tok = self.current()
-
         if tok.type == 'KEYWORD' and tok.value in ('int', 'string'):
             return self.decl()
         elif tok.type == 'ID':
@@ -161,7 +96,7 @@ class Parser:
     # decl → TYPE ID ';'
     def decl(self):
         type_ = self.eat('KEYWORD').value
-        name = self.eat('ID').value
+        name  = self.eat('ID').value
         self.eat('SEMI')
         return Decl(type_, name)
 
@@ -177,15 +112,14 @@ class Parser:
     def expr(self):
         node = self.term()
         while self.current() and self.current().value == '+':
-            op = self.eat('OP').value
+            op    = self.eat('OP').value
             right = self.term()
-            node = BinOp(node, op, right)
+            node  = BinOp(node, op, right)
         return node
 
     # term → ID | NUM | STRING
     def term(self):
         tok = self.current()
-
         if tok.type == 'NUM':
             self.eat('NUM')
             return Num(tok.value)
@@ -199,7 +133,7 @@ class Parser:
             raise SyntaxError("Invalid term")
 
 
-# ===================== TEST =====================
+# ── TEST ───────────────────────────────────────────────────────
 
 if __name__ == '__main__':
     tests = [
@@ -208,7 +142,7 @@ if __name__ == '__main__':
         "x = 5 + 2;",
         "string name;",
         'name = "alice";',
-        'name = "hello" + " world";'
+        'name = "hello" + " world";',
     ]
 
     for src in tests:
@@ -216,12 +150,8 @@ if __name__ == '__main__':
         try:
             tokens = tokenize(src)
             print("Tokens:", tokens)
-
-            parser = Parser(tokens)
-            ast = parser.stmt()
+            ast = Parser(tokens).stmt()
             print("AST   :", ast)
-
         except SyntaxError as e:
             print("ERROR :", e)
-
         print()
