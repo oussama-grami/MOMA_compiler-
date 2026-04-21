@@ -1,27 +1,26 @@
-# MIMO COMPILER (Lexer + Parser + Semantic Analysis)
+# MOMA Compiler Playground
 
-## 📌 Overview
+A mini compiler project for a small language, with an interactive web interface.
 
-This project implements a **mini compiler** for a simple programming language. It covers the fundamental phases of compilation:
-
-* ✅ Lexical Analysis (Lexer)
-* ✅ Syntax Analysis (Parser - LL(1))
-* ✅ Semantic Analysis (Type Checking & Validation)
-
-The goal of this project is to simulate how a real compiler works, from reading source code to validating its correctness.
+It demonstrates the three core compilation phases:
+- Lexical analysis (`lexical_analyser.py`)
+- Syntax analysis / parsing (`parser.py`)
+- Semantic analysis (`semantic_analyzer.py`)
 
 ---
 
-## 👨‍💻 Team Members
+## Overview
 
-* **Oussema Guerami**
-* **Maram Ghouma**
-* **Mohamed Aziz Dhouibi**
-* **Maram Ben Rhouma**
+This project parses and validates one statement at a time:
+- Variable declarations (e.g., `int x;`, `string name;`)
+- Assignments (e.g., `x = 5;`, `name = "alice";`)
+- `+` expressions with type consistency checks
+
+The web app (`start.py` + `index.html`) visualizes each stage and keeps a session symbol table.
 
 ---
 
-## 🧩 Language Grammar
+## Language Grammar
 
 ```text
 stmt   → decl | assign
@@ -40,141 +39,106 @@ TYPE   → 'int' | 'string'
 
 ---
 
-## ⚙️ Features
+## Features
 
-### 🔹 Lexer
-
-* Tokenizes input source code into:
-
-  * Keywords (`int`, `string`)
-  * Identifiers
-  * Numbers
-  * Strings
-  * Operators (`=`, `+`)
-  * Symbols (`;`)
-
----
-
-### 🔹 Parser (LL(1))
-
-* Implements a **recursive descent parser**
-* Builds an **Abstract Syntax Tree (AST)**
-* Supports:
-
-  * Variable declarations
-  * Assignments
-  * Arithmetic expressions
+- **Lexer**
+  - Tokenizes keywords, identifiers, numbers, strings, operators, and semicolons.
+- **Parser (recursive descent)**
+  - Builds AST nodes (`Decl`, `Assign`, `BinOp`, `Num`, `Id`, `Str`).
+- **Semantic analyzer**
+  - Checks declaration-before-use.
+  - Checks duplicate declarations.
+  - Checks assignment type compatibility.
+  - Checks operand type compatibility for `+`.
+- **Web Playground**
+  - Runs analysis through `/api/run`.
+  - Supports symbol-table reset via `/api/reset`.
 
 ---
 
-### 🔹 Semantic Analyzer
+## Project Structure
 
-* Type checking:
-
-  * Prevents assigning a `string` to an `int`
-  * Ensures variable declarations before use
-* Detects semantic errors such as:
-
-  * Undeclared variables
-  * Type mismatches
+```text
+MOMA_compiler-/
+├── lexical_analyser.py   # Lexer
+├── parser.py             # Parser + AST nodes
+├── semantic_analyzer.py  # Semantic analyzer + symbol table
+├── start.py              # Flask backend + API routes
+├── index.html            # Frontend playground
+└── README.md
+```
 
 ---
 
-## 🧪 Example Inputs
+## Requirements
 
-### ✅ Valid Code
+- Python 3.10+
+- Flask
+- flask-cors
+
+Install dependencies:
+
+```bash
+pip install flask flask-cors
+```
+
+---
+
+## Run the Playground
+
+From the repository root:
+
+```bash
+python start.py
+```
+
+Then open:
+
+```text
+http://localhost:5050
+```
+
+---
+
+## Quick Example
+
+### Valid
 
 ```c
 int x;
-x = 5;
-
-string name;
-name = "alice";
-
 x = 5 + 2;
 ```
 
-### ❌ Invalid Code
+### Invalid
 
 ```c
 int x;
-x = "hello";   // Type error
-
-y = 5;         // Undeclared variable
+x = "hello";   // type mismatch
 ```
 
 ---
 
-## 🚀 How to Run
+## Run Module Self-Tests
 
-### 1. Clone the repository
+Each module includes a small `__main__` test block:
 
 ```bash
-git clone https://github.com/your-username/mini-compiler.git
-cd mini-compiler
-```
-
-### 2. Run the compiler
-
-```bash
-python compiler.py
+python lexical_analyser.py
+python parser.py
+python semantic_analyzer.py
 ```
 
 ---
 
-## 📂 Project Structure
+## Team Members
 
-```
-mini-compiler/
-│
-├── compiler.py      # Lexer + Parser + Tests
-├── semantic.py      # Semantic Analyzer (if separated)
-├── README.md
-```
+- Oussema Guerami
+- Maram Ghouma
+- Mohamed Aziz Dhouibi
+- Maram Ben Rhouma
 
 ---
 
-## 🛠️ Technologies Used
-
-* Python 🐍
-* Regular Expressions (`re`)
-* Recursive Descent Parsing
-
----
-
-## 📈 Learning Outcomes
-
-Through this project, we learned:
-
-* How compilers are structured
-* The difference between **syntax errors** and **semantic errors**
-* How to design and implement a **grammar**
-* Building and traversing an **AST**
-* Implementing **type checking**
-
----
-
-## 🔮 Future Improvements
-
-* Add support for:
-
-  * `float` type
-  * Control structures (`if`, `while`)
-* Improve error messages
-* Build a simple interpreter or code generator
-
----
-
-## 📜 License
+## License
 
 This project is for educational purposes.
-
----
-
-## ⭐ Acknowledgment
-
-This project was developed as part of a **Compiler Design / Systems Programming course**.
-
----
-
-💡 *Feel free to fork, improve, and experiment with the compiler!*
